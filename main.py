@@ -46,14 +46,16 @@ def get_mp3():
     with os.scandir(os.path.expanduser(config["mp3Dir"])) as mp3s:
         for mp3 in mp3s:
             if mp3.name.endswith(".mp3"):
-                audioFile = eyed3.load(f"{os.path.expanduser(config["mp3Dir"])}/{mp3.name}")
-                audioTitle = audioFile.tag.title if audioFile.tag.title is not None else "Unknown Title"
-                albumName = audioFile.tag.album if audioFile.tag.album is not None else "Unknown Album"
-                artistName = audioFile.tag.artist if audioFile.tag.artist is not None else "Unknown Artist"
-                duration = math.floor(audioFile.info.time_secs)
+                audioFile = eyed3.load(f"{os.path.expanduser(config["mp3Dir"])}/{mp3.name}")        
+                audioTitle =  audioFile.tag.title if audioFile.tag.title else mp3.name
+                albumName = audioFile.tag.album if audioFile.tag.album else "Unknown"
+                artistName = audioFile.tag.artist if audioFile.tag.artist else "Unknown"
+                duration = audioFile.info.time_secs
                 files.append({"Title":audioTitle, "Artist":artistName, "Album":albumName, "Path":audioFile.path, "Duration":strftime("%M:%S", gmtime(duration))})
-
     return list(files)
+#############################################################################################
+#Playlists
+
 def main():
     print(os.scandir(os.path.expanduser(config["mp3Dir"])))
 
