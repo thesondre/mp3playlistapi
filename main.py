@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import os, eyed3, math
+import xml.etree.ElementTree as ET
+import os, eyed3
 from time import strftime, gmtime
 app = FastAPI()
 
@@ -57,7 +58,29 @@ def get_mp3():
                 files.append({"Title":audioTitle, "Artist":artistName, "Album":albumName, "Path":audioFile.path, "Duration":strftime("%M:%S", gmtime(duration))})
     return list(files)
 #############################################################################################
-#Playlists
+###For reading the contents in playlist files.
+def parseXSPF (xspf): 
+    
+    tree = ET.parse(xspf)
+
+    root = tree.getroot()
+
+    media = []
+
+    ns = {'xspf': 'http://xspf.org/ns/0/'}
+    for track in root.findall('xspf:trackList/xspf:track', ns):
+        #title = track.find('xspf:title', ns ).text
+        location = (track.find('xspf:location', ns ).text).replace("%20", " ") 
+        media.append(dict({"path":location}))
+
+    parsed = {
+        "title":root.find('xspf:title', ns).text,
+        "tracks":media
+    }
+    return  parsed
+
+#############################################################################################
+#Playlist
 
 @app.get("/playlists")
 def get_playlists():
@@ -65,7 +88,7 @@ def get_playlists():
     with os.scandir(os.path.expanduser(config["playlistDir"])) as files:
         for file in files:
             if file.name.endswith(config["playlistFormat"]):
-                playlists.append(file.name)
+                playlists.append(parseXSPF(file.path))
     return playlists
 
 @app.get("/playlists/{playlist}")
@@ -73,8 +96,9 @@ def get_playlist(playlist):
     with os.scandir(os.path.expanduser(config["playlistDir"])) as files:
         for file in files:
             if file.name.endswith(config["playlistFormat"]):
-                if file.name == playlist:
-                    return playlist
+                parsed = parseXSPF(file.path)
+                if parsed["title"] == playlist:
+                    return parsed
     
     return "Playlist does not exist"
 class Playlist(BaseModel):
