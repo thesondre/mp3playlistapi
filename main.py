@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 import os, eyed3, math
 from time import strftime, gmtime
 app = FastAPI()
@@ -6,7 +7,8 @@ app = FastAPI()
 config = {
     "mp3Dir":"~/Music",
     "playlistDir":"~/Music/Playlists",
-    "relativePath":"../"
+    "relativePath":"../",
+    "playlistFormat":"xspf"
 }
 @app.get("/")
 async def read_root():
@@ -35,7 +37,8 @@ def reset_config():
    config = { 
         "mp3Dir":"~/Music",
         "playlistDir":"~/Music/Playlists",
-        "relativePath":"../"
+        "relativePath":"../",
+        "playlistFormat":"xspf"
     }
    return "Config resetted"
 #############################################################################################
@@ -56,8 +59,53 @@ def get_mp3():
 #############################################################################################
 #Playlists
 
-def main():
-    print(os.scandir(os.path.expanduser(config["mp3Dir"])))
+@app.get("/playlists")
+def get_playlists():
+    playlists = []
+    with os.scandir(os.path.expanduser(config["playlistDir"])) as files:
+        for file in files:
+            if file.name.endswith(config["playlistFormat"]):
+                playlists.append(file.name)
+    return playlists
 
-if __name__=="__main__":
-    main()
+@app.get("/playlists/{playlist}")
+def get_playlist(playlist):
+    with os.scandir(os.path.expanduser(config["playlistDir"])) as files:
+        for file in files:
+            if file.name.endswith(config["playlistFormat"]):
+                if file.name == playlist:
+                    return playlist
+    
+    return "Playlist does not exist"
+class Playlist(BaseModel):
+    name:str
+    tracks:list[str]
+
+@app.post("/playlists")
+def create_playlist(playlist:Playlist):
+    tracklist = ""
+    trackID = ""
+    count = 0
+    for track in playlist.tracks:
+        tracklist += f"""<track>
+			<location>{track}</location>
+			<extension application="http://www.videolan.org/vlc/playlist/0">
+				<vlc:id>{count}</vlc:id>
+				<vlc:option>recursive=collapse</vlc:option>
+			</extension>
+		</track>""".replace("&","&amp;")
+        trackID += f'<vlc:item tid="{count}"/>'
+        count += 1
+    with open(f"{os.path.expanduser(config["playlistDir"])}/{playlist.name}.xspf", "w") as file:
+        file.write(f"""<?xml version="1.0" encoding="UTF-8"?>
+    <playlist xmlns="http://xspf.org/ns/0/" xmlns:vlc="http://www.videolan.org/vlc/playlist/ns/0/" version="1">
+	    <title>{playlist.name}</title>
+	    <trackList>
+		    {tracklist}
+        </trackList>
+    	<extension application="http://www.videolan.org/vlc/playlist/0">
+		{trackID}:
+	    </extension>
+    </playlist>
+    """)
+        return "Playlist created"
