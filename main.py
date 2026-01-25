@@ -55,7 +55,7 @@ def get_mp3():
                 albumName = audioFile.tag.album if audioFile.tag.album else "Unknown"
                 artistName = audioFile.tag.artist if audioFile.tag.artist else "Unknown"
                 duration = audioFile.info.time_secs
-                files.append({"Title":audioTitle, "Artist":artistName, "Album":albumName, "Path":audioFile.path, "Duration":strftime("%M:%S", gmtime(duration))})
+                files.append({"Title":audioTitle, "Artist":artistName, "Album":albumName, "globalPath":audioFile.path, "relativePath":config["relativePath"]+mp3.name, "Duration":strftime("%M:%S", gmtime(duration))})
     return list(files)
 #############################################################################################
 ###For reading the contents in playlist files.
