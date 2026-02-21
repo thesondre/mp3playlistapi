@@ -1,13 +1,20 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import *
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import xml.etree.ElementTree as ET
-import os, eyed3
+import os, eyed3, io, base64
+from PIL import Image
 from time import strftime, gmtime
+from typing import List, Optional
 app = FastAPI()
 
 app.add_middleware(
-    CORSMiddleware
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 config = {
     "mp3Dir":"~/Music",
@@ -15,9 +22,23 @@ config = {
     "relativePath":"../",
     "playlistFormat":"xspf"
 }
-@app.get("/")
+@app.get("/", response_class=StreamingResponse
+)
 async def read_root():
-    return {"message": "Hello, FastAPI!"}
+    
+    file = eyed3.load("/home/Sondre/Music/Bomb Iran (1980) - Vince Vance & The Valiants.mp3")
+    imageData = file.tag.images
+    if not imageData:
+        pass
+    image = Image.open(io.BytesIO(imageData[0].image_data))
+
+    img_byte_arr = io.BytesIO()
+
+    image.save(img_byte_arr, format="PNG")
+
+    img_byte_arr.seek(0)
+    return StreamingResponse(img_byte_arr, media_type="image/png")
+    
 
 ##Config
 #############################################################################################
@@ -48,19 +69,43 @@ def reset_config():
    return "Config resetted"
 #############################################################################################
 #Mp3 files
+class AudioMetadata(BaseModel):
+    Title: str
+    Artist: str
+    Album: str
+    globalPath:str
+    relativePath:str
+    Duration:str
+
+
+
+
 @app.get("/mp3")
-def get_mp3():
-    files = []
+async def get_mp3():
+    metadataList = []
     with os.scandir(os.path.expanduser(config["mp3Dir"])) as mp3s:
         for mp3 in mp3s:
             if mp3.name.endswith(".mp3"):
-                audioFile = eyed3.load(f"{os.path.expanduser(config["mp3Dir"])}/{mp3.name}")        
+                audioFile = eyed3.load(f"{os.path.expanduser(config["mp3Dir"])}/{mp3.name}")
+                if not audioFile.tag:
+                    metadataList.append(AudioMetadata(Title=None, Image=None, Artist=None, Album=None, globalPath=audioFile.path, relativePath=config["relativePath"]+mp3.name, Duration=strftime("%M:%S", gmtime(audioFile.info.time_secs))))
+                    continue
+                    
                 audioTitle =  audioFile.tag.title if audioFile.tag.title else mp3.name
                 albumName = audioFile.tag.album if audioFile.tag.album else "Unknown"
                 artistName = audioFile.tag.artist if audioFile.tag.artist else "Unknown"
-                duration = audioFile.info.time_secs
-                files.append({"Title":audioTitle, "Artist":artistName, "Album":albumName, "globalPath":audioFile.path, "relativePath":config["relativePath"]+mp3.name, "Duration":strftime("%M:%S", gmtime(duration))})
-    return list(files)
+                duration = strftime("%M:%S", gmtime(audioFile.info.time_secs))
+
+                metadata = AudioMetadata(
+                    Title=audioTitle,
+                    Album=albumName,
+                    Artist=artistName,
+                    globalPath=audioFile.path,
+                    relativePath=config["relativePath"]+mp3.name,
+                    Duration=duration
+                )
+                metadataList.append(metadata)
+    return metadataList
 #############################################################################################
 ###For reading the contents in playlist files.
 def parseXSPF (xspf): 
@@ -132,7 +177,7 @@ def create_playlist(playlist:Playlist):
 		    {tracklist}
         </trackList>
     	<extension application="http://www.videolan.org/vlc/playlist/0">
-		{trackID}:
+		{trackID}:Artist=artistName
 	    </extension>
     </playlist>
     """)
