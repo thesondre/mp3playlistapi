@@ -1,10 +1,14 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import xml.etree.ElementTree as ET
 import os, eyed3
 from time import strftime, gmtime
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware
+)
 config = {
     "mp3Dir":"~/Music",
     "playlistDir":"~/Music/Playlists",
