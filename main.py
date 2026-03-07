@@ -123,8 +123,8 @@ def parseXSPF (xspf):
         media.append(dict({"path":location}))
 
     parsed = {
-        "title":root.find('xspf:title', ns).text,
-        "tracks":media
+        "Title":root.find('xspf:title', ns).text,
+        "Tracks":media
     }
     return  parsed
 
