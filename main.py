@@ -151,15 +151,15 @@ def get_playlist(playlist):
     
     return "Playlist does not exist"
 class Playlist(BaseModel):
-    name:str
-    tracks:list[str]
+    Title:str
+    Tracks:list[str]
 
 @app.post("/playlists")
 def create_playlist(playlist:Playlist):
     tracklist = ""
     trackID = ""
     count = 0
-    for track in playlist.tracks:
+    for track in playlist.Tracks:
         tracklist += f"""<track>
 			<location>{track}</location>
 			<extension application="http://www.videolan.org/vlc/playlist/0">
@@ -169,15 +169,15 @@ def create_playlist(playlist:Playlist):
 		</track>""".replace("&","&amp;")
         trackID += f'<vlc:item tid="{count}"/>'
         count += 1
-    with open(f"{os.path.expanduser(config["playlistDir"])}/{playlist.name}.xspf", "w") as file:
+    with open(f"{os.path.expanduser(config["playlistDir"])}/{playlist.Title}.xspf", "w") as file:
         file.write(f"""<?xml version="1.0" encoding="UTF-8"?>
     <playlist xmlns="http://xspf.org/ns/0/" xmlns:vlc="http://www.videolan.org/vlc/playlist/ns/0/" version="1">
-	    <title>{playlist.name}</title>
+	    <title>{playlist.Title}</title>
 	    <trackList>
 		    {tracklist}
         </trackList>
     	<extension application="http://www.videolan.org/vlc/playlist/0">
-		{trackID}:Artist=artistName
+		{trackID}
 	    </extension>
     </playlist>
     """)
